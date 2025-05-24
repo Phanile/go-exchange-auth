@@ -61,7 +61,6 @@ func (app *App) Stop() {
 
 	app.log.With(
 		slog.String("op", op),
-		slog.Int("port", int(app.port)),
 	)
 
 	app.log.Info("grpc server is shutting down")

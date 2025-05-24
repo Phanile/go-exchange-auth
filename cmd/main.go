@@ -5,6 +5,8 @@ import (
 	"github.com/Phanile/go-exchange-auth/internal/config"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 const (
@@ -18,9 +20,14 @@ func main() {
 	log := setupLogger(envLocal)
 
 	application := app.NewApp(log, cfg.GRPC.Port, cfg.TokenTTL)
-	application.GRPCServer.MustRun()
+	go application.GRPCServer.MustRun()
 
-	log.Info("Start auth service", slog.Any("cfg", cfg))
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+
+	<-stop
+
+	application.GRPCServer.Stop()
 }
 
 func setupLogger(env string) *slog.Logger {
