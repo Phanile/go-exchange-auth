@@ -1,6 +1,7 @@
 env: "local"
-dsn: "Server=localhost;Port=5432;Database=Deposit;User Id=postgres;Password=1"
+dsn: "user=postgres password=1 dbname=CryptoAuth host=localhost port=5432 sslmode=disable"
 token_ttl: 24h
+private_key: ""
 grpc:
   port: 5711
   timeout: 5s

@@ -19,7 +19,7 @@ func main() {
 	cfg := config.MustLoad()
 	log := setupLogger(envLocal)
 
-	application := app.NewApp(log, cfg.GRPC.Port, cfg.TokenTTL)
+	application := app.NewApp(log, cfg)
 	go application.GRPCServer.MustRun()
 
 	stop := make(chan os.Signal, 1)

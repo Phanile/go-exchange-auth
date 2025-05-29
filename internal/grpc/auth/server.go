@@ -2,6 +2,9 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"github.com/Phanile/go-exchange-auth/internal/services/auth"
+	"github.com/Phanile/go-exchange-auth/internal/storage"
 	"github.com/Phanile/go-exchange-protos/generated/go/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -37,6 +40,10 @@ func (s *ServerAPI) Login(ctx context.Context, req *authv1.LoginRequest) (*authv
 	token, err := s.auth.Login(ctx, req.GetEmail(), req.GetPassword())
 
 	if err != nil {
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			return nil, status.Error(codes.InvalidArgument, "Invalid Credentials")
+		}
+
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -57,11 +64,15 @@ func (s *ServerAPI) Register(ctx context.Context, req *authv1.RegisterRequest) (
 	userId, err := s.auth.Register(ctx, req.GetEmail(), req.GetPassword())
 
 	if err != nil {
+		if errors.Is(err, auth.ErrUserExist) {
+			return nil, status.Error(codes.AlreadyExists, "User already exists")
+		}
+
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &authv1.RegisterResponse{
-		UserId: int64(userId),
+		UserId: userId,
 	}, nil
 }
 
@@ -73,6 +84,10 @@ func (s *ServerAPI) IsAdmin(ctx context.Context, req *authv1.AdminRequest) (*aut
 	isAdmin, err := s.auth.IsAdmin(ctx, req.GetUserId())
 
 	if err != nil {
+		if errors.Is(err, storage.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "User not found")
+		}
+
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

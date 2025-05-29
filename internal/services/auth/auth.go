@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Phanile/go-exchange-auth/internal/domain/models"
+	"github.com/Phanile/go-exchange-auth/internal/lib/jwt"
 	"github.com/Phanile/go-exchange-auth/internal/storage"
 	"golang.org/x/crypto/bcrypt"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrUserExist          = errors.New("user already exists")
 )
 
 type Auth struct {
@@ -38,7 +40,7 @@ func (a *Auth) Login(ctx context.Context, email string, password string) (token 
 		slog.String("op", op),
 	)
 
-	user, errUser := a.userProvider.User(ctx, email)
+	user, errUser := a.userProvider.UserByEmail(ctx, email)
 
 	if errUser != nil {
 		if errors.Is(errUser, storage.ErrUserNotFound) {
@@ -60,7 +62,9 @@ func (a *Auth) Login(ctx context.Context, email string, password string) (token 
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	return "", nil
+	jwtToken := jwt.NewToken(user, a.tokenTTL, "")
+
+	return jwtToken, nil
 }
 
 func (a *Auth) Register(ctx context.Context, email string, password string) (userId int64, err error) {
@@ -80,6 +84,10 @@ func (a *Auth) Register(ctx context.Context, email string, password string) (use
 	id, saveErr := a.userSaver.SaveUser(ctx, email, hashedPass)
 
 	if saveErr != nil {
+		if errors.Is(saveErr, ErrUserExist) {
+			return 0, fmt.Errorf("%s: %w", op, ErrUserExist)
+		}
+
 		a.log.Error("failed to save user")
 		return 0, fmt.Errorf("%s: %w", op, saveErr)
 	}
@@ -88,7 +96,19 @@ func (a *Auth) Register(ctx context.Context, email string, password string) (use
 }
 
 func (a *Auth) IsAdmin(ctx context.Context, userId int64) (isAdmin bool, err error) {
-	return false, nil
+	const op = "auth.IsAdmin"
+
+	a.log.With(
+		slog.String("op", op),
+	)
+
+	admin, errAdmin := a.userProvider.IsAdmin(ctx, userId)
+
+	if errAdmin != nil {
+		return false, fmt.Errorf("%s: %w", op, errAdmin)
+	}
+
+	return admin, nil
 }
 
 type UserSaver interface {
@@ -96,6 +116,7 @@ type UserSaver interface {
 }
 
 type UserProvider interface {
-	User(ctx context.Context, email string) (models.User, error)
-	IsAdmin(ctx context.Context, email string) (bool, error)
+	UserByEmail(ctx context.Context, email string) (*models.User, error)
+	UserById(ctx context.Context, id int64) (*models.User, error)
+	IsAdmin(ctx context.Context, userId int64) (bool, error)
 }

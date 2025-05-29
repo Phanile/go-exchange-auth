@@ -3,6 +3,7 @@ package grpc
 import (
 	"fmt"
 	authGRPC "github.com/Phanile/go-exchange-auth/internal/grpc/auth"
+	"github.com/Phanile/go-exchange-auth/internal/services/auth"
 	"google.golang.org/grpc"
 	"log/slog"
 	"net"
@@ -14,9 +15,9 @@ type App struct {
 	port       uint
 }
 
-func NewGRPCApp(log *slog.Logger, port uint) *App {
+func NewGRPCApp(log *slog.Logger, authService *auth.Auth, port uint) *App {
 	grpcServer := grpc.NewServer()
-	authGRPC.Register(grpcServer)
+	authGRPC.Register(grpcServer, authService)
 
 	return &App{
 		log:        log,
