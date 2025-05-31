@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/Phanile/go-exchange-auth/internal/app"
 	"github.com/Phanile/go-exchange-auth/internal/config"
+	"github.com/joho/godotenv"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -18,6 +19,7 @@ const (
 func main() {
 	cfg := config.MustLoad()
 	log := setupLogger(envLocal)
+	setupEnv(envLocal)
 
 	application := app.NewApp(log, cfg)
 	go application.GRPCServer.MustRun()
@@ -47,4 +49,13 @@ func setupLogger(env string) *slog.Logger {
 		)
 	}
 	return log
+}
+
+func setupEnv(env string) {
+	switch env {
+	case envLocal:
+		if err := godotenv.Load(); err != nil {
+			panic(err)
+		}
+	}
 }

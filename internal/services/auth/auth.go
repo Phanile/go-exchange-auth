@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/rsa"
 	"errors"
 	"fmt"
 	"github.com/Phanile/go-exchange-auth/internal/domain/models"
@@ -22,14 +23,16 @@ type Auth struct {
 	userSaver    UserSaver
 	userProvider UserProvider
 	tokenTTL     time.Duration
+	secretKey    *rsa.PrivateKey
 }
 
-func NewAuth(log *slog.Logger, userSaver UserSaver, userProvider UserProvider, tokenTTL time.Duration) *Auth {
+func NewAuth(log *slog.Logger, userSaver UserSaver, userProvider UserProvider, tokenTTL time.Duration, secretKey *rsa.PrivateKey) *Auth {
 	return &Auth{
 		log:          log,
 		userSaver:    userSaver,
 		userProvider: userProvider,
 		tokenTTL:     tokenTTL,
+		secretKey:    secretKey,
 	}
 }
 
@@ -62,7 +65,7 @@ func (a *Auth) Login(ctx context.Context, email string, password string) (token 
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	jwtToken := jwt.NewToken(user, a.tokenTTL, "")
+	jwtToken := jwt.NewToken(user, a.tokenTTL, a.secretKey)
 
 	return jwtToken, nil
 }

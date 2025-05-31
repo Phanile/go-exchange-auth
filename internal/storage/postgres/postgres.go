@@ -35,24 +35,11 @@ func (s *Storage) Connection() *sql.DB {
 func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (int64, error) {
 	const op = "storage.postgres.SaveUser"
 
-	stmt, err := s.db.Prepare("insert into Users(email, pass_hash) values (?, ?)")
+	var id int64
+	err := s.db.QueryRowContext(ctx, "insert into Users(email, pass_hash) values ($1, $2) returning id", email, passHash).Scan(&id)
 
 	if err != nil {
 		return 0, fmt.Errorf("%s : %w", op, err)
-	}
-
-	defer stmt.Close()
-
-	res, errExec := stmt.ExecContext(ctx, email, passHash)
-
-	if errExec != nil {
-		return 0, fmt.Errorf("%s : %w", op, errExec)
-	}
-
-	id, errId := res.LastInsertId()
-
-	if errId != nil {
-		return 0, fmt.Errorf("%s : %w", op, errId)
 	}
 
 	return id, nil
@@ -61,25 +48,16 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (
 func (s *Storage) UserById(ctx context.Context, id int64) (*models.User, error) {
 	const op = "storage.postgres.UserById"
 
-	stmt, err := s.db.Prepare("select * from Users where id = ?")
-
-	if err != nil {
-		return nil, fmt.Errorf("%s : %w", op, err)
-	}
-
-	defer stmt.Close()
-
 	var user models.User
 
-	row := stmt.QueryRowContext(ctx, id)
-	errScan := row.Scan(user.Id, user.Email, user.PassHash)
+	err := s.db.QueryRowContext(ctx, "select * from Users where id = $1", id).Scan(&user.Id, &user.Email, &user.PassHash)
 
-	if errScan != nil {
-		if errors.Is(errScan, sql.ErrNoRows) {
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("%s : %w", op, storage.ErrUserNotFound)
 		}
 
-		return nil, fmt.Errorf("%s : %w", op, errScan)
+		return nil, fmt.Errorf("%s : %w", op, err)
 	}
 
 	return &user, nil
@@ -88,25 +66,16 @@ func (s *Storage) UserById(ctx context.Context, id int64) (*models.User, error) 
 func (s *Storage) UserByEmail(ctx context.Context, email string) (*models.User, error) {
 	const op = "storage.postgres.UserByEmail"
 
-	stmt, err := s.db.Prepare("select * from Users where email = ?")
-
-	if err != nil {
-		return nil, fmt.Errorf("%s : %w", op, err)
-	}
-
-	defer stmt.Close()
-
 	var user models.User
 
-	row := stmt.QueryRowContext(ctx, email)
-	errScan := row.Scan(user.Id, user.Email, user.PassHash)
+	err := s.db.QueryRowContext(ctx, "select * from Users where email = $1", email).Scan(&user.Id, &user.Email, &user.PassHash)
 
-	if errScan != nil {
-		if errors.Is(errScan, sql.ErrNoRows) {
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("%s : %w", op, storage.ErrUserNotFound)
 		}
 
-		return nil, fmt.Errorf("%s : %w", op, errScan)
+		return nil, fmt.Errorf("%s : %w", op, err)
 	}
 
 	return &user, nil
@@ -115,24 +84,16 @@ func (s *Storage) UserByEmail(ctx context.Context, email string) (*models.User, 
 func (s *Storage) IsAdmin(ctx context.Context, userId int64) (bool, error) {
 	const op = "storage.postgres.IsAdmin"
 
-	stmt, err := s.db.Prepare("select * from Admins where user_id = ?")
+	var exists bool
+	err := s.db.QueryRowContext(ctx, "select exists(select 1 from Admins where user_id = $1)", userId).Scan(&exists)
 
 	if err != nil {
-		return false, fmt.Errorf("%s : %w", op, err)
-	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRowContext(ctx, userId)
-	errScan := row.Scan()
-
-	if errScan != nil {
-		if errors.Is(errScan, sql.ErrNoRows) {
-			return false, nil
+		if errors.Is(err, sql.ErrNoRows) {
+			return exists, nil
 		}
 
-		return false, fmt.Errorf("%s : %w", op, errScan)
+		return exists, fmt.Errorf("%s : %w", op, err)
 	}
 
-	return true, nil
+	return exists, nil
 }
