@@ -17,13 +17,24 @@ type App struct {
 }
 
 func NewApp(log *slog.Logger, config *config.Config) *App {
-	storage, err := postgres.NewStorage(config.Dsn)
+	dsn := os.Getenv("PGSQL_CONNECTION_STRING")
+
+	if dsn == "" {
+		panic("PGSQL_CONNECTION_STRING environment variable not set")
+	}
+
+	storage, err := postgres.NewStorage(dsn)
 
 	if err != nil {
 		panic(err)
 	}
 
 	privatePem := os.Getenv("JWT_PRIVATE_KEY")
+
+	if privatePem == "" {
+		panic("JWT_PRIVATE_KEY environment variable not set")
+	}
+
 	secretKey, errParse := jwt.ParseRSAPrivateKeyFromPEM([]byte(privatePem))
 
 	if errParse != nil {

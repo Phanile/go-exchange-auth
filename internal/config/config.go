@@ -9,7 +9,6 @@ import (
 
 type Config struct {
 	Env      string        `yaml:"env"`
-	Dsn      string        `yaml:"dsn"`
 	TokenTTL time.Duration `yaml:"token_ttl"`
 	GRPC     *GRPCConfig   `yaml:"grpc"`
 }
@@ -34,6 +33,19 @@ func MustLoad() *Config {
 	err := cleanenv.ReadConfig(path, &cfg)
 
 	if err != nil {
+		panic(err)
+	}
+
+	return &cfg
+}
+
+func MustLoadByPath(path string) *Config {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		panic("config file not found: " + path)
+	}
+
+	var cfg Config
+	if err := cleanenv.ReadConfig(path, &cfg); err != nil {
 		panic(err)
 	}
 
