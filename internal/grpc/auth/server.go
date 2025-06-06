@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"github.com/Phanile/go-exchange-auth/internal/lib/prometheus"
 	"github.com/Phanile/go-exchange-auth/internal/services/auth"
 	"github.com/Phanile/go-exchange-auth/internal/storage"
 	"github.com/Phanile/go-exchange-protos/generated/go/auth"
@@ -29,11 +30,15 @@ func Register(grpc *grpc.Server, auth Auth) {
 }
 
 func (s *ServerAPI) Login(ctx context.Context, req *authv1.LoginRequest) (*authv1.LoginResponse, error) {
+	prometheus.LoginAttempts.WithLabelValues("attempt_login").Inc()
+
 	if req.GetEmail() == "" {
+		prometheus.LoginErrors.WithLabelValues("empty_email").Inc()
 		return nil, status.Error(codes.InvalidArgument, "Email is required")
 	}
 
 	if req.GetPassword() == "" {
+		prometheus.LoginErrors.WithLabelValues("empty_password").Inc()
 		return nil, status.Error(codes.InvalidArgument, "Password is required")
 	}
 
@@ -41,6 +46,7 @@ func (s *ServerAPI) Login(ctx context.Context, req *authv1.LoginRequest) (*authv
 
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
+			prometheus.LoginErrors.WithLabelValues("invalid_credentials").Inc()
 			return nil, status.Error(codes.InvalidArgument, "Invalid Credentials")
 		}
 
@@ -53,11 +59,15 @@ func (s *ServerAPI) Login(ctx context.Context, req *authv1.LoginRequest) (*authv
 }
 
 func (s *ServerAPI) Register(ctx context.Context, req *authv1.RegisterRequest) (*authv1.RegisterResponse, error) {
+	prometheus.RegisterAttempts.WithLabelValues("attempt").Inc()
+
 	if req.GetEmail() == "" {
+		prometheus.RegisterErrors.WithLabelValues("empty_email").Inc()
 		return nil, status.Error(codes.InvalidArgument, "Email is required")
 	}
 
 	if req.GetPassword() == "" {
+		prometheus.RegisterErrors.WithLabelValues("empty_password").Inc()
 		return nil, status.Error(codes.InvalidArgument, "Password is required")
 	}
 
@@ -65,6 +75,7 @@ func (s *ServerAPI) Register(ctx context.Context, req *authv1.RegisterRequest) (
 
 	if err != nil {
 		if errors.Is(err, auth.ErrUserExist) {
+			prometheus.RegisterErrors.WithLabelValues("user_exists").Inc()
 			return nil, status.Error(codes.AlreadyExists, "User already exists")
 		}
 

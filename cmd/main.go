@@ -4,7 +4,9 @@ import (
 	"github.com/Phanile/go-exchange-auth/internal/app"
 	"github.com/Phanile/go-exchange-auth/internal/config"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -23,6 +25,7 @@ func main() {
 
 	application := app.NewApp(log, cfg)
 	go application.GRPCServer.MustRun()
+	go handleMetrics()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
@@ -57,5 +60,16 @@ func setupEnv(env string) {
 		if err := godotenv.Load(); err != nil {
 			panic(err)
 		}
+	}
+}
+
+func handleMetrics() {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+
+	err := http.ListenAndServe(":2111", mux)
+
+	if err != nil {
+		panic("error starting metrics server: " + err.Error())
 	}
 }
